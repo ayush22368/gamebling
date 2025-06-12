@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Gaming Site</title>
+    <style>
+        /* Import a modern font */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .auth-container { width: 100%; max-width: 400px; padding: 20px; }
+        .form-card { background: rgba(25, 25, 25, 0.8); padding: 40px; border-radius: 12px; border: 1px solid #00c6ff; box-shadow: 0 0 25px rgba(0, 198, 255, 0.3); }
+        .form-card h1 { color: #00c6ff; text-align: center; margin-bottom: 30px; font-weight: 600; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.9em; color: #a0a0a0; }
+        input { width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: #e0e0e0; font-size: 1em; transition: border-color 0.3s, box-shadow 0.3s; }
+        input:focus { outline: none; border-color: #00c6ff; box-shadow: 0 0 10px rgba(0, 198, 255, 0.5); }
+        button { width: 100%; padding: 12px; background: #00c6ff; color: #121212; border: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background: #00a0cc; }
+        .helper-text { text-align: center; margin-top: 20px; font-size: 0.9em; }
+        .helper-text a { color: #00c6ff; text-decoration: none; font-weight: 600; }
+        .helper-text a:hover { text-decoration: underline; }
+        #message { margin-top: 20px; text-align: center; font-weight: 600; }
+        .message-success { color: #28a745; }
+        .message-error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="form-card">
+            <h1>Create Account</h1>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" minlength="6" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <div id="message"></div>
+            <p class="helper-text">
+                Already have an account? <a href="login.html">Login</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // --- Supabase Client Initialization ---
+        const supabaseUrl = 'https://lxelktvserqkjxhaturp.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4ZWxrdHZzZXJxa2p4aGF0dXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjM0MzAsImV4cCI6MjA2NTEzOTQzMH0.po3VsVKeC0P57u3oUq2AX9QeYQhryswreq0ieelmG2k';
+
+        // **FIX:** Renamed to 'supabaseClient' to avoid naming conflict
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // --- JavaScript Logic for Registration ---
+        const registerForm = document.getElementById('register-form');
+        const messageDiv = document.getElementById('message');
+
+        registerForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); 
+            const email = registerForm.email.value;
+            const password = registerForm.password.value;
+
+            // **FIX:** Use the new 'supabaseClient' variable
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                messageDiv.textContent = 'Error: ' + error.message;
+                messageDiv.className = 'message-error';
+            } else {
+                messageDiv.textContent = 'Registration successful! Please check your email to confirm your account (or login directly if confirmation is off).';
+                messageDiv.className = 'message-success';
+                registerForm.reset();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Ignore the secret environment file
+.env
+
+# Ignore the huge folder of installed packages
+node_modules

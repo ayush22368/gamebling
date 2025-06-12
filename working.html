@@ -1,0 +1,74 @@
+// This is the final, simplified, and correct server code.
+
+// We load the tools we need
+const express = require('express');
+const cors = require('cors');
+const crypto = require('crypto');
+
+console.log("Server script starting..."); // Debug message 1
+
+// Your secret keys are here for this test.
+const merchId = 'M09Q699K09OE1749628188';
+const secretKey = 'Fn1Vdgmc7jw10B0iM7zbQ1BjYeq1qv1P'; // From your latest screenshot
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+console.log("Express app configured."); // Debug message 2
+
+// This is the main endpoint
+app.post('/create-payment-order', async (req, res) => {
+  console.log("Received a request at /create-payment-order"); // Debug message 3
+  
+  try {
+    const { amount } = req.body;
+    if (!amount) {
+      return res.status(400).json({ error: 'Amount is missing from request.' });
+    }
+
+    const orderId = `GAMINGHUB-${Date.now()}`;
+    const postData = {
+      customer_mobile: '9999999999',
+      merch_id: merchId,
+      amount: amount,
+      order_id: orderId,
+      currency: 'INR',
+      redirect_url: 'http://127.0.0.1:5500/game.html',
+      udf1: '', udf2: '', udf3: '', udf4: '', udf5: '',
+    };
+
+    const sortedKeys = Object.keys(postData).sort();
+    const dataString = sortedKeys.map(key => `${key}=${postData[key]}`).join('|');
+    const hmac = crypto.createHmac('sha256', secretKey);
+    hmac.update(dataString);
+    const xVerify = hmac.digest('hex');
+
+    console.log("Sending request to Fastzix..."); // Debug message 4
+
+    const fastzixResponse = await fetch('https://fastzix.in/api/v1/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-VERIFY': xVerify },
+      body: JSON.stringify(postData)
+    });
+    
+    const responseData = await fastzixResponse.json();
+
+    if (!responseData.status) {
+      throw new Error(responseData.message || 'Payment gateway returned an error.');
+    }
+    
+    console.log("Successfully created payment order. Sending URL back."); // Debug message 5
+    res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error("ERROR in request:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  // This is the message you should see when the server starts correctly.
+  console.log(`SUCCESS: Payment server is running on http://localhost:${PORT}`);
+});

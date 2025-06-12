@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plinko - Gaming Site</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #e0e0e0; overflow-x: hidden; }
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: #1c1c1c; border-bottom: 1px solid #00c6ff; }
+        .user-info { display: flex; align-items: center; gap: 20px; }
+        .action-button { padding: 8px 20px; border: 1px solid #00c6ff; color: #00c6ff; background: transparent; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .action-button:disabled { background-color: #555; border-color: #555; color: #888; cursor: not-allowed; }
+        #logout-button { border-color: #dc3545; color: #dc3545; }
+        .main-content { display: flex; justify-content: center; align-items: flex-start; gap: 40px; padding: 40px; flex-wrap: wrap; }
+        .game-controls { background-color: #1c1c1c; padding: 30px; border-radius: 12px; border: 1px solid #333; width: 300px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: #1c1c1c; padding: 40px; border-radius: 12px; border: 1px solid #00c6ff; width: 90%; max-width: 400px; text-align: center; }
+        canvas { background-color: #181818; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div style="font-size: 1.5em; font-weight: 600; color: #00c6ff;">GAMINGHUB</div>
+        <div class="user-info">
+            <div id="user-email-display" style="background: #252525; padding: 8px 15px; border-radius: 20px; font-size: 0.9em;">Loading...</div>
+            <div id="user-balance-display" style="background: #252525; padding: 8px 15px; border-radius: 20px; font-size: 0.9em;">Balance: <span style="font-weight: 600; color: #28a745;">₹0.00</span></div>
+            <button id="deposit-button" class="action-button">Deposit</button>
+            <button id="logout-button" class="action-button">Logout</button>
+        </div>
+    </header>
+    <main class="main-content">
+        <div class="game-controls">
+            <h2 style="text-align: center; color: #00c6ff; margin-bottom: 20px;">Plinko</h2>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                <label for="bet-amount" style="color: #a0a0a0; font-size: 0.9em;">Bet Amount (₹)</label>
+                <input type="number" id="bet-amount" value="10" min="1" style="width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: #e0e0e0; font-size: 1.1em;">
+            </div>
+            <button id="play-button" class="action-button" style="width: 100%; padding: 15px; background-color: #28a745; border: none; color: #fff; font-size: 1.2em;" disabled>Play</button>
+        </div>
+        <div id="plinko-container"></div>
+    </main>
+    <div id="deposit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Deposit Funds</h2>
+            <form id="deposit-form">
+                <input type="number" id="deposit-amount" placeholder="e.g., 500" min="1" step="any" required style="width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: #e0e0e0; font-size: 1.2em; text-align: center; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px;">
+                    <button type="button" id="cancel-deposit" class="action-button" style="flex-grow: 1; border-color: #6c757d; color: #6c757d;">Cancel</button>
+                    <button type="submit" id="confirm-deposit-button" class="action-button" style="flex-grow: 1;">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://lxelktvserqkjxhaturp.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4ZWxrdHZzZXJxa2p4aGF0dXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjM0MzAsImV4cCI6MjA2NTEzOTQzMH0.po3VsVKeC0P57u3oUq2AX9QeYQhryswreq0ieelmG2k';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        const userEmailDiv = document.getElementById('user-email-display');
+        const userBalanceSpan = document.querySelector('#user-balance-display span');
+        const depositModal = document.getElementById('deposit-modal');
+        const depositForm = document.getElementById('deposit-form');
+        
+        let currentUser = null;
+        let userProfile = null;
+        
+        const formatAsRupees = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+        
+        function updateUI() {
+            if (currentUser && userProfile) {
+                userEmailDiv.textContent = currentUser.email;
+                userBalanceSpan.textContent = formatAsRupees(userProfile.balance);
+            }
+        }
+        
+        async function fetchProfile(userId) {
+            const { data, error } = await supabaseClient.from('profiles').select('balance').eq('id', userId).single();
+            if (error && error.code === 'PGRST116') {
+                const { data: newProfile, error: insertError } = await supabaseClient.from('profiles').insert({ id: userId }).select().single();
+                userProfile = newProfile;
+            } else {
+                userProfile = data;
+            }
+            updateUI();
+        }
+        
+        document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
+        document.getElementById('deposit-button').addEventListener('click', () => depositModal.classList.add('active'));
+        document.getElementById('cancel-deposit').addEventListener('click', () => depositModal.classList.remove('active'));
+
+        depositForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const amount = parseFloat(document.getElementById('deposit-amount').value);
+            if (isNaN(amount) || amount <= 0) return alert('Please enter a valid amount.');
+            
+            const confirmButton = document.getElementById('confirm-deposit-button');
+            confirmButton.disabled = true;
+            confirmButton.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('http://localhost:3000/create-payment-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: amount })
+                });
+                
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'The server returned an error.');
+                }
+                
+                if (data.result && data.result.payment_url) {
+                    window.location.href = data.result.payment_url;
+                } else {
+                    throw new Error('Could not get payment URL.');
+                }
+            } catch (err) {
+                alert('An error occurred: ' + err.message);
+                confirmButton.disabled = false;
+                confirmButton.textContent = 'Confirm';
+            }
+        });
+
+        const { Engine, Render, Runner, World, Bodies, Events, Common } = Matter;
+        const plinkoContainer = document.getElementById('plinko-container');
+        const playButton = document.getElementById('play-button');
+
+        function initPlinko() {
+            const BUCKET_MULTIPLIERS = [16, 9, 2, 1.4, 1.1, 0.5, 0.2, 0.5, 1.1, 1.4, 2, 9, 16];
+            const CANVAS_WIDTH = 600, CANVAS_HEIGHT = 700, PEG_RADIUS = 5;
+            const engine = Engine.create({ gravity: { y: 1.2 } });
+            const render = Render.create({ element: plinkoContainer, engine: engine, options: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, wireframes: false, background: 'transparent' } });
+            const pegs = [];
+            for (let row = 0; row < 12; row++) {
+                const numPegsInRow = row + 4; const y = 100 + row * 40; const xOffset = (CANVAS_WIDTH - (numPegsInRow - 1) * 45) / 2;
+                for (let col = 0; col < numPegsInRow; col++) {
+                    pegs.push(Bodies.circle(xOffset + col * 45, y, PEG_RADIUS, { isStatic: true, restitution: 0.5, render: { fillStyle: '#555' } }));
+                }
+            }
+            const bucketHeight = 80; const bucketWidth = CANVAS_WIDTH / BUCKET_MULTIPLIERS.length;
+            const buckets = []; const bucketDividers = [];
+            for (let i = 0; i < BUCKET_MULTIPLIERS.length; i++) {
+                const x = bucketWidth * i + bucketWidth / 2;
+                buckets.push(Bodies.rectangle(x, CANVAS_HEIGHT - bucketHeight / 2, bucketWidth, bucketHeight, { isStatic: true, isSensor: true, label: `bucket_${i}`, render: { fillStyle: 'transparent' } }));
+            }
+            for (let i = 0; i <= BUCKET_MULTIPLIERS.length; i++) {
+                bucketDividers.push(Bodies.rectangle(bucketWidth * i, CANVAS_HEIGHT - bucketHeight / 2, 4, bucketHeight, { isStatic: true, render: { fillStyle: '#00c6ff' } }));
+            }
+            Events.on(render, 'afterRender', () => {
+                const context = render.context; context.font = '14px Poppins'; context.textAlign = 'center';
+                for (let i = 0; i < BUCKET_MULTIPLIERS.length; i++) {
+                    const multiplier = BUCKET_MULTIPLIERS[i];
+                    if (multiplier >= 10) context.fillStyle = '#ffc107'; else if (multiplier >= 2) context.fillStyle = '#00c6ff'; else if (multiplier >= 1) context.fillStyle = '#28a745'; else context.fillStyle = '#dc3545';
+                    context.fillText(`${multiplier}x`, bucketWidth * i + bucketWidth / 2, CANVAS_HEIGHT - bucketHeight / 2 + 5);
+                }
+            });
+            World.add(engine.world, [...pegs, ...buckets, ...bucketDividers]);
+            Render.run(render);
+            Runner.run(Runner.create(), engine);
+
+            async function updateBalanceInDB(newBalance) {
+                if (!currentUser) return;
+                userProfile.balance = newBalance;
+                updateUI();
+                await supabaseClient.from('profiles').update({ balance: newBalance }).eq('id', currentUser.id);
+            }
+
+            Events.on(engine, 'collisionStart', (event) => {
+                const pair = event.pairs[0];
+                let ball, bucket;
+                if (pair.bodyA.label.startsWith('ball')) { ball = pair.bodyA; bucket = pair.bodyB; }
+                else if (pair.bodyB.label.startsWith('ball')) { ball = pair.bodyB; bucket = pair.bodyA; }
+                if (ball && bucket && bucket.label.startsWith('bucket')) {
+                    World.remove(engine.world, ball);
+                    const bucketIndex = parseInt(bucket.label.split('_')[1]);
+                    const winnings = parseFloat(ball.label.split('_')[1]) * BUCKET_MULTIPLIERS[bucketIndex];
+                    updateBalanceInDB(userProfile.balance + winnings);
+                    playButton.disabled = false;
+                }
+            });
+
+            playButton.addEventListener('click', () => {
+                const betAmount = parseFloat(document.getElementById('bet-amount').value);
+                if (isNaN(betAmount) || betAmount <= 0) return alert('Invalid bet amount.');
+                if (betAmount > userProfile.balance) return alert('Insufficient balance.');
+                updateBalanceInDB(userProfile.balance - betAmount);
+                playButton.disabled = true;
+                const ball = Bodies.circle(CANVAS_WIDTH / 2 + Common.random(-1, 1), 40, 8, { restitution: 0.8, friction: 0.1, label: `ball_${betAmount}`, render: { fillStyle: '#fff' } });
+                World.add(engine.world, ball);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = session.user;
+            await fetchProfile(currentUser.id);
+            initPlinko();
+            playButton.disabled = false;
+        });
+
+    </script>
+</body>
+</html>

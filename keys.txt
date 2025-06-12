@@ -1,0 +1,3 @@
+project==url== https://lxelktvserqkjxhaturp.supabase.co
+
+anon=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4ZWxrdHZzZXJxa2p4aGF0dXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjM0MzAsImV4cCI6MjA2NTEzOTQzMH0.po3VsVKeC0P57u3oUq2AX9QeYQhryswreq0ieelmG2k
