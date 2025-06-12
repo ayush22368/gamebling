@@ -45,7 +45,7 @@ app.post('/create-payment-order', async (req, res) => {
       amount: amount,
       order_id: orderId,
       currency: 'INR',
-      redirect_url: 'http://127.0.0.1:5500/game.html',
+      redirect_url: 'https://gamebling-git-main-ayushs-projects-8d1b3920.vercel.app/game.html',
       udf1: `user${Date.now()}`.slice(0, 20), // Create a valid, short, alphanumeric ID // Placeholder user ID for now
       udf2: 'test', udf3: 'test', udf4: 'test', udf5: 'test',
     };
